@@ -1,10 +1,11 @@
+SHELL	:= /bin/bash
 MAKEDIR	:= $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD	?= $(MAKEDIR)/tmp
 M		?= $(BUILD)/milestones
 
 # Targets
-kubeadm-init: $(M)/kubeadm
-deploy: /usr/bin/kubeadm
+deploy: $(M)/kubeadm
+install: /usr/bin/kubeadm
 preference: $(M)/preference
 
 $(M)/setup:
@@ -23,7 +24,7 @@ $(M)/setup:
 	sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(shell lsb_release -cs) stable"
 	sudo apt-get update
 	sudo apt-get install -y docker-ce=18.06.2~ce~3-0~ubuntu
-	echo "{\n\
+	echo -e "{\n\
 		\"exec-opts\": [\"native.cgroupdriver=systemd\"],\n\
 		\"log-driver\": \"json-file\",\n\
 		\"log-opts\": {\n\
