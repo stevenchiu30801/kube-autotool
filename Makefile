@@ -42,9 +42,10 @@ $(M)/setup:
 	sudo apt-get update
 	sudo apt-get install -y kubelet kubeadm kubectl
 	sudo apt-mark hold kubelet kubeadm kubectl
-	echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd" | sudo tee /etc/default/kubelet
-	sudo systemctl daemon-reload
-	sudo systemctl restart kubelet
+	# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#configure-cgroup-driver-used-by-kubelet-on-control-plane-node
+	# echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd" | sudo tee /etc/default/kubelet
+	# sudo systemctl daemon-reload
+	# sudo systemctl restart kubelet
 
 $(M)/preference: | $(M)/setup /usr/bin/kubeadm
 	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
