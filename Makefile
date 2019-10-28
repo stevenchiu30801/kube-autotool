@@ -3,9 +3,9 @@ BUILD	?= $(MAKEDIR)/tmp
 M		?= $(BUILD)/milestones
 
 # Targets
+kubeadm-init: $(M)/kubeadm
 deploy: /usr/bin/kubeadm
 preference: $(M)/preference
-kubeadm-init: $(M)/kubeadm
 
 $(M)/setup:
 	sudo apt-get update
@@ -35,6 +35,7 @@ $(M)/setup:
 	sudo systemctl daemon-reload
 	sudo systemctl restart docker
 
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl
 /usr/bin/kubeadm: | $(M)/setup /usr/bin/docker
 	curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 	echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -46,11 +47,13 @@ $(M)/setup:
 	sudo systemctl restart kubelet
 
 $(M)/preference: | $(M)/setup /usr/bin/kubeadm
+	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
 	sudo apt-get install bash-completion
 	source /usr/share/bash-completion/bash_completion
 	kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl
 	touch $@
 
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
 $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	sudo kubeadm init --pod-network-cidr=192.168.0.0/16
 	mkdir -p $(HOME)/.kube
@@ -61,8 +64,8 @@ $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	touch $@
 	echo "Kubernetes control plane node created!"
 
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#tear-down
 reset-kubeadm:
 	rm -f $(M)/kubeadm
 	sudo kubeadm reset -f || true
-	# https://blog.heptio.com/properly-resetting-your-kubeadm-bootstrapped-cluster-nodes-heptioprotip-473bd0b824aa
 	sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X
