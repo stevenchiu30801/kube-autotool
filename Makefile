@@ -51,9 +51,10 @@ $(M)/setup:
 $(M)/preference: | $(M)/setup /usr/bin/kubeadm
 	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
 	sudo apt-get install bash-completion
-	source /usr/share/bash-completion/bash_completion
 	kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl
 	touch $@
+	@echo -e "Please reload your shell or source the bash-completion script to make autocompletion work:\n\
+	    source /usr/share/bash-completion/bash_completion"
 
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
 $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
@@ -64,7 +65,7 @@ $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
 	kubectl taint nodes --all node-role.kubernetes.io/master-
 	touch $@
-	echo "Kubernetes control plane node created!"
+	@echo "Kubernetes control plane node created!"
 
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#tear-down
 reset-kubeadm:
