@@ -9,8 +9,6 @@ install: /usr/bin/kubeadm
 preference: $(M)/preference
 
 $(M)/setup:
-	sudo apt-get update
-	sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
 	sudo $(MAKEDIR)/scripts/portcheck.sh
 	sudo swapoff -a
 	# To remain swap disabled after reboot
@@ -20,6 +18,8 @@ $(M)/setup:
 
 # https://kubernetes.io/docs/setup/production-environment/container-runtimes/#docker
 /usr/bin/docker: | $(M)/setup
+	sudo apt-get update
+	sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
 	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 	sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(shell lsb_release -cs) stable"
 	sudo apt-get update
@@ -38,6 +38,8 @@ $(M)/setup:
 
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl
 /usr/bin/kubeadm: | $(M)/setup /usr/bin/docker
+	sudo apt-get update
+	sudo apt-get install -y apt-transport-https curl
 	curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 	echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 	sudo apt-get update
@@ -69,6 +71,6 @@ $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#tear-down
 reset-kubeadm:
-	rm -f $(M)/kubeadm
+	rm -f $(M)/setup $(M)/kubeadm
 	sudo kubeadm reset -f || true
 	sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X
