@@ -3,6 +3,11 @@ MAKEDIR	:= $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD	?= $(MAKEDIR)/tmp
 M		?= $(BUILD)/milestones
 
+# 18.06.2~ce~3-0~ubuntu in Kubernetes document
+DOCKER_VERSION	?= 18.06.2
+
+K8S_VERSION	?= 1.16.2
+
 # Targets
 deploy: $(M)/kubeadm
 install: /usr/bin/kubeadm
@@ -23,7 +28,7 @@ $(M)/setup:
 	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 	sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(shell lsb_release -cs) stable"
 	sudo apt-get update
-	sudo apt-get install -y docker-ce=18.06.2~ce~3-0~ubuntu
+	sudo apt-get install -y docker-ce=${DOCKER_VERSION}*
 	# Currently, systemd would report error in kubelet logs on both ubuntu Xenial and Bionic
 	# Please refer to https://github.com/kubernetes/kubernetes/issues/76531
 	echo -e "{\n\
@@ -45,7 +50,7 @@ $(M)/setup:
 	curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 	echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 	sudo apt-get update
-	sudo apt-get install -y kubelet kubeadm kubectl
+	sudo apt-get install -y kubelet=${K8S_VERSION}-* kubeadm=${K8S_VERSION}-* kubectl=${K8S_VERSION}-*
 	sudo apt-mark hold kubelet kubeadm kubectl
 	# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#configure-cgroup-driver-used-by-kubelet-on-control-plane-node
 	# echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd" | sudo tee /etc/default/kubelet
