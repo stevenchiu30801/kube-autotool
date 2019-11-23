@@ -1,2 +1,4 @@
 tmp/
+Vagrantfile
 .vagrant/
+*.log
