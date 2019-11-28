@@ -8,6 +8,8 @@ DOCKER_VERSION	?= 18.06.2
 
 K8S_VERSION		?= 1.16.2
 
+CALICO_VERSION	?= 3.8
+
 HELM_VERSION	?= 3.0.0
 HELM_PLATFORM	?= linux-amd64
 
@@ -83,7 +85,7 @@ $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	mkdir -p $(HOME)/.kube
 	sudo cp -f /etc/kubernetes/admin.conf $(HOME)/.kube/config
 	sudo chown $(shell id -u):$(shell id -g) $(HOME)/.kube/config
-	kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
+	kubectl apply -f https://docs.projectcalico.org/v${CALICO_VERSION}/manifests/calico.yaml
 	kubectl taint nodes --all node-role.kubernetes.io/master-
 	touch $@
 	@echo "Kubernetes control plane node created!"
