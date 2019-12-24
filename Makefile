@@ -8,14 +8,15 @@ DOCKER_VERSION	?= 18.06.2
 
 K8S_VERSION		?= 1.16.2
 
-CALICO_VERSION	?= 3.8
+CALICO_VERSION		?= 3.8
+CALICOCTL_VERSION	?= 3.8.5
 
 HELM_VERSION	?= 3.0.0
 HELM_PLATFORM	?= linux-amd64
 
 # Targets
 deploy: $(M)/kubeadm
-install: /usr/bin/kubeadm /usr/local/bin/helm
+install: /usr/bin/kubeadm /usr/local/bin/helm /usr/local/bin/calicoctl
 preference: $(M)/preference
 
 $(M)/setup:
@@ -64,17 +65,32 @@ $(M)/setup:
 	# sudo systemctl restart kubelet
 
 # https://helm.sh/docs/intro/install/#from-the-binary-releases
-/usr/local/bin/helm:
+/usr/local/bin/helm: | $(M)/setup
 	curl -L -o ${BUILD}/helm.tgz https://get.helm.sh/helm-v${HELM_VERSION}-${HELM_PLATFORM}.tar.gz
 	cd ${BUILD}; tar -zxvf helm.tgz
-	sudo mv ${BUILD}/${HELM_PLATFORM}/helm /usr/local/bin/helm
-	sudo chmod a+x /usr/local/bin/helm
+	sudo mv ${BUILD}/${HELM_PLATFORM}/helm $@
+	sudo chmod a+x $@
 	rm -r ${BUILD}/helm.tgz ${BUILD}/${HELM_PLATFORM}
 
-$(M)/preference: | $(M)/setup /usr/bin/kubeadm
+# https://docs.projectcalico.org/v3.10/getting-started/calicoctl/install
+/usr/local/bin/calicoctl: | $(M)/setup
+	curl -O -L  https://github.com/projectcalico/calicoctl/releases/download/v${CALICOCTL_VERSION}/calicoctl
+	sudo chmod +x calicoctl
+	sudo chown root:root calicoctl
+	sudo mv calicoctl $@
+	# https://docs.projectcalico.org/v3.10/getting-started/calicoctl/configure/
+	echo -e "apiVersion: projectcalico.org/v3\n\
+	kind: CalicoAPIConfig\n\
+	metadata:\n\
+	spec:\n\
+	  datastoreType: \"kubernetes\"\n\
+	  kubeconfig: \"/etc/kubernetes/admin.conf\"" | sudo tee /etc/calico/calicoctl.cfg
+
+$(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
 	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
 	sudo apt-get install bash-completion
 	kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl
+	helm completion bash | sudo tee /etc/bash_completion.d/helm
 	touch $@
 	@echo -e "Please reload your shell or source the bash-completion script to make autocompletion work:\n\
 	    source /usr/share/bash-completion/bash_completion"
@@ -85,7 +101,13 @@ $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	mkdir -p $(HOME)/.kube
 	sudo cp -f /etc/kubernetes/admin.conf $(HOME)/.kube/config
 	sudo chown $(shell id -u):$(shell id -g) $(HOME)/.kube/config
+	# https://docs.projectcalico.org/v3.10/getting-started/kubernetes/installation/calico
+	# To use a pod CIDR different from 192.168.0.0/16, please replace it in calico.yaml with your own
 	kubectl apply -f https://docs.projectcalico.org/v${CALICO_VERSION}/manifests/calico.yaml
+	# https://github.com/intel/multus-cni/blob/master/doc/quickstart.md
+	# -git clone https://github.com/intel/multus-cni.git /tmp/multus
+	# cat /tmp/multus/images/multus-daemonset.yml | kubectl apply -f
+	kubectl apply -f https://raw.githubusercontent.com/intel/multus-cni/master/images/multus-daemonset.yml
 	kubectl taint nodes --all node-role.kubernetes.io/master-
 	touch $@
 	@echo "Kubernetes control plane node created!"
