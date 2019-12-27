@@ -79,6 +79,7 @@ $(M)/setup:
 	sudo chown root:root calicoctl
 	sudo mv calicoctl $@
 	# https://docs.projectcalico.org/v3.10/getting-started/calicoctl/configure/
+	sudo mkdir -p /etc/calico
 	echo -e "apiVersion: projectcalico.org/v3\n\
 	kind: CalicoAPIConfig\n\
 	metadata:\n\
