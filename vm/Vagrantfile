@@ -71,4 +71,12 @@ Vagrant.configure("2") do |config|
   #   apt-get update
   #   apt-get install -y apache2
   # SHELL
+
+  # Install `make` and disable ethernet filtering (ebtables, bridge-nf, arptables)
+  # https://wiki.linuxfoundation.org/networking/bridge
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update
+    apt-get install -y make
+    cd /proc/sys/net/bridge && for f in bridge-nf-*; do echo 0 > $f; done
+  SHELL
 end
