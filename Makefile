@@ -91,7 +91,11 @@ $(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
 	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
 	sudo apt-get install bash-completion
 	kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl
-	helm completion bash | sudo tee /etc/bash_completion.d/helm
+	# Avoid error on completion of filename following helm repository field
+	# E.g. helm install mychart ./mychart
+	#                             ^
+	#                             Would pop error related to tail command when hit tab for completion
+	helm completion bash | sed "s/tail +2/tail +2 2>\/dev\/null/g" | sudo tee /etc/bash_completion.d/helm
 	touch $@
 	@echo -e "Please reload your shell or source the bash-completion script to make autocompletion work:\n\
 	    source /usr/share/bash-completion/bash_completion"
