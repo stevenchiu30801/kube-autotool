@@ -14,6 +14,8 @@ CALICOCTL_VERSION	?= 3.8.5
 HELM_VERSION	?= 3.0.0
 HELM_PLATFORM	?= linux-amd64
 
+GO_VERSION	?= 1.13.5
+
 # Targets
 deploy: $(M)/kubeadm
 install: /usr/bin/kubeadm /usr/local/bin/helm /usr/local/bin/calicoctl
@@ -74,7 +76,7 @@ $(M)/setup:
 
 # https://docs.projectcalico.org/v3.10/getting-started/calicoctl/install
 /usr/local/bin/calicoctl: | $(M)/setup
-	curl -O -L  https://github.com/projectcalico/calicoctl/releases/download/v${CALICOCTL_VERSION}/calicoctl
+	curl -O -L https://github.com/projectcalico/calicoctl/releases/download/v${CALICOCTL_VERSION}/calicoctl
 	sudo chmod +x calicoctl
 	sudo chown root:root calicoctl
 	sudo mv calicoctl $@
@@ -99,6 +101,22 @@ $(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
 	touch $@
 	@echo -e "Please reload your shell or source the bash-completion script to make autocompletion work:\n\
 	    source /usr/share/bash-completion/bash_completion"
+
+# https://golang.org/doc/install#install
+/usr/local/go:
+	curl -O -L https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
+	sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+	echo -e '\nexport PATH=$$PATH:/usr/local/go/bin' >> $(HOME)/.profile
+	rm go${GO_VERSION}.linux-amd64.tar.gz
+	@echo -e "Please reload your shell or source $$HOME/.profile to apply the changes:\n\
+		source $$HOME/.profile"
+
+# https://github.com/containernetworking/plugins
+cni-plugins-update: | /usr/bin/kubeadm /usr/local/go
+	-git clone https://github.com/containernetworking/plugins /tmp/plugins
+	cd /tmp/plugins; git pull
+	export PATH=$$PATH:/usr/local/go/bin; cd /tmp/plugins; ./build_linux.sh
+	sudo cp /tmp/plugins/bin/* /opt/cni/bin
 
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
 $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
