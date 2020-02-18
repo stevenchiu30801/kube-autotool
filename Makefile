@@ -16,10 +16,16 @@ HELM_PLATFORM	?= linux-amd64
 
 GO_VERSION	?= 1.13.5
 
+SRIOV_INTF		?=
+SRIOV_VF_NUM	?= 4
+
 # Targets
 deploy: $(M)/kubeadm
 install: /usr/bin/kubeadm /usr/local/bin/helm /usr/local/bin/calicoctl
 preference: $(M)/preference
+
+multus-setup: $(M)/multus-init
+sriov-setup: $(M)/sriov-init $(M)/multus-init
 
 $(M)/setup:
 	sudo $(MAKEDIR)/scripts/portcheck.sh
@@ -93,19 +99,6 @@ $(M)/setup:
 	  datastoreType: \"kubernetes\"\n\
 	  kubeconfig: \"/etc/kubernetes/admin.conf\"" | sudo tee /etc/calico/calicoctl.cfg
 
-$(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
-	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
-	sudo apt-get install bash-completion
-	kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl
-	# Avoid error on completion of filename following helm repository field
-	# E.g. helm install mychart ./mychart
-	#                             ^
-	#                             Would pop error related to tail command when hit tab for completion
-	helm completion bash | sed "s/tail +2/tail +2 2>\/dev\/null/g" | sudo tee /etc/bash_completion.d/helm
-	touch $@
-	@echo -e "Please reload your shell or source the bash-completion script to make autocompletion work:\n\
-	    source /usr/share/bash-completion/bash_completion"
-
 # https://golang.org/doc/install#install
 /usr/local/go:
 	curl -O -L https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
@@ -122,6 +115,41 @@ cni-plugins-update: | /usr/bin/kubeadm /usr/local/go
 	export PATH=$$PATH:/usr/local/go/bin; cd /tmp/plugins; ./build_linux.sh
 	sudo cp /tmp/plugins/bin/* /opt/cni/bin
 
+# https://github.com/intel/sriov-cni.git
+/opt/cni/bin/sriov: | /usr/local/go
+	-git clone https://github.com/intel/sriov-cni.git $(R)/sriov-cni
+	export PATH=$$PATH:/usr/local/go/bin; cd $(R)/sriov-cni; make
+	mkdir -p /opt/cni/bin
+	sudo cp $(R)/sriov-cni/build/sriov $@
+
+# https://github.com/intel/sriov-network-device-plugin
+$(R)/sriov-network-device-plugin/build/sriovdp: | /usr/local/go
+	-git clone https://github.com/intel/sriov-network-device-plugin.git $(R)/sriov-network-device-plugin
+	export PATH=$$PATH:/usr/local/go/bin; cd $(R)/sriov-network-device-plugin; make && make image
+
+.PHONY: sriov-server-setup
+
+sriov-server-setup:
+	@if [[ -z "${SRIOV_INTF}" ]]; \
+	then \
+		echo "Invalid value: SRIOV_INTF must be provided"; \
+		exit 1; \
+	fi
+	$(MAKEDIR)/scripts/sriov_setup.sh ${SRIOV_INTF} ${SRIOV_VF_NUM}
+
+$(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
+	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
+	sudo apt-get install bash-completion
+	kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl
+	# Avoid error on completion of filename following helm repository field
+	# E.g. helm install mychart ./mychart
+	#                             ^
+	#                             Would pop error related to tail command when hit tab for completion
+	helm completion bash | sed "s/tail +2/tail +2 2>\/dev\/null/g" | sudo tee /etc/bash_completion.d/helm
+	touch $@
+	@echo -e "Please reload your shell or source the bash-completion script to make autocompletion work:\n\
+	    source /usr/share/bash-completion/bash_completion"
+
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
 $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	sudo kubeadm init --pod-network-cidr=192.168.0.0/16
@@ -131,16 +159,25 @@ $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
 	# https://docs.projectcalico.org/v3.10/getting-started/kubernetes/installation/calico
 	# To use a pod CIDR different from 192.168.0.0/16, please replace it in calico.yaml with your own
 	kubectl apply -f https://docs.projectcalico.org/v${CALICO_VERSION}/manifests/calico.yaml
-	# https://github.com/intel/multus-cni/blob/master/doc/quickstart.md
-	# -git clone https://github.com/intel/multus-cni.git /tmp/multus
-	# cat /tmp/multus/images/multus-daemonset.yml | kubectl apply -f
-	kubectl apply -f https://raw.githubusercontent.com/intel/multus-cni/master/images/multus-daemonset.yml
 	kubectl taint nodes --all node-role.kubernetes.io/master-
 	touch $@
 	@echo "Kubernetes control plane node created!"
 
+# https://github.com/intel/multus-cni/blob/master/doc/quickstart.md
+$(M)/multus-init: | $(M)/kubeadm
+	# -git clone https://github.com/intel/multus-cni.git $(R)/multus
+	# cat $(R)/multus/images/multus-daemonset.yml | kubectl apply -f
+	kubectl apply -f https://raw.githubusercontent.com/intel/multus-cni/master/images/multus-daemonset.yml
+	touch $@
+
+# https://github.com/intel/sriov-network-device-plugin
+$(M)/sriov-init: | $(M)/kubeadm /opt/cni/bin/sriov $(R)/sriov-network-device-plugin/build/sriovdp sriov-server-setup
+	sed 's/PF_NAME/${SRIOV_INTF}/g' $(DEPLOY)/sriov-configmap.yaml | sed "s/LAST_VF/$$(( ${SRIOV_VF_NUM} - 1 ))/g" | kubectl apply -f -
+	kubectl apply -f $(R)/sriov-network-device-plugin/deployments/k8s-v1.16/sriovdp-daemonset.yaml
+	touch $@
+
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#tear-down
 reset-kubeadm:
-	rm -f $(M)/setup $(M)/kubeadm
+	rm -f $(M)/setup $(M)/kubeadm $(M)/multus-init $(M)/sriov-init
 	sudo kubeadm reset -f || true
 	sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X
