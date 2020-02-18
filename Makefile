@@ -16,6 +16,8 @@ HELM_PLATFORM	?= linux-amd64
 
 GO_VERSION	?= 1.13.5
 
+OPERATOR_SDK_VERSION	?= 0.15.2
+
 SRIOV_INTF		?=
 SRIOV_VF_NUM	?= 4
 
@@ -136,6 +138,16 @@ sriov-server-setup:
 		exit 1; \
 	fi
 	$(MAKEDIR)/scripts/sriov_setup.sh ${SRIOV_INTF} ${SRIOV_VF_NUM}
+
+# https://github.com/operator-framework/operator-sdk/blob/master/doc/user/install-operator-sdk.md
+/usr/local/bin/operator-sdk: | /usr/local/go
+	curl -LO https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu
+	# curl -LO https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu.asc
+	# gpg --verify operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu.asc
+	chmod +x operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu
+	sudo mkdir -p /usr/local/bin/
+	sudo cp operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu $@
+	rm operator-sdk-v${OPERATOR_SDK_VERSION}-x86_64-linux-gnu
 
 $(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
 	# https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
