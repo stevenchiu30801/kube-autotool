@@ -80,6 +80,8 @@ $(M)/setup:
 
 # https://helm.sh/docs/intro/install/#from-the-binary-releases
 /usr/local/bin/helm: | $(M)/setup
+	sudo apt-get update
+	sudo apt-get install -y curl
 	curl -L -o ${BUILD}/helm.tgz https://get.helm.sh/helm-v${HELM_VERSION}-${HELM_PLATFORM}.tar.gz
 	cd ${BUILD}; tar -zxvf helm.tgz
 	sudo mv ${BUILD}/${HELM_PLATFORM}/helm $@
@@ -88,6 +90,8 @@ $(M)/setup:
 
 # https://docs.projectcalico.org/v3.10/getting-started/calicoctl/install
 /usr/local/bin/calicoctl: | $(M)/setup
+	sudo apt-get update
+	sudo apt-get install -y curl
 	curl -O -L https://github.com/projectcalico/calicoctl/releases/download/v${CALICOCTL_VERSION}/calicoctl
 	sudo chmod +x calicoctl
 	sudo chown root:root calicoctl
@@ -103,6 +107,8 @@ $(M)/setup:
 
 # https://golang.org/doc/install#install
 /usr/local/go:
+	sudo apt-get update
+	sudo apt-get install -y curl
 	curl -O -L https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
 	sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
 	echo -e '\nexport PATH=$$PATH:/usr/local/go/bin' >> $(HOME)/.profile
