@@ -31,6 +31,9 @@ EXISTING_VF=$( ip link show $1 | grep -c vf )
 if [[ ${EXISTING_VF} -eq $2 ]]; then
     echo "Number of existing VFs is exactly $2"
     exit 0
+elif [[ ${EXISTING_VF} -ne 0 ]]; then
+    # Reset VFs
+    echo 0 | sudo tee /sys/class/net/$1/device/sriov_numvfs >/dev/null
 fi
 
 # Check if IOMMU support for Linux kernel is enable
@@ -77,3 +80,11 @@ fi
 
 # Create VFs
 echo $2 | sudo tee /sys/class/net/$1/device/sriov_numvfs >/dev/null
+
+# Assign MAC address to VFs if VF driver is i40e
+if [[ ${DRIVER} -eq "i40e" ]]; then
+    for i in $(seq 0 $(($2 - 1)));
+    do
+        sudo ip link set $1 vf $i mac aa:bb:cc:dd:ee:$(printf "%02d" $i)
+    done
+fi
