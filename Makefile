@@ -170,6 +170,10 @@ $(M)/preference: | /usr/bin/kubeadm /usr/local/bin/helm
 
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
 $(M)/kubeadm: | $(M)/setup /usr/bin/kubeadm
+	# Check if directory /var/lib/etcd exists
+	if [[ -d /var/lib/etcd ]]; then \
+		sudo rm -rf /var/lib/etcd; \
+	fi
 	sudo kubeadm init --pod-network-cidr=192.168.0.0/16
 	mkdir -p $(HOME)/.kube
 	sudo cp -f /etc/kubernetes/admin.conf $(HOME)/.kube/config
