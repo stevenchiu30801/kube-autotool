@@ -116,6 +116,8 @@ $(M)/setup:
 	@echo -e "Please reload your shell or source $$HOME/.profile to apply the changes:\n\
 		source $$HOME/.profile"
 
+.PHONY: cni-plugins-update
+
 # https://github.com/containernetworking/plugins
 cni-plugins-update: | /usr/bin/kubeadm /usr/local/go
 	-git clone https://github.com/containernetworking/plugins /tmp/plugins
@@ -198,8 +200,16 @@ $(M)/sriov-init: | $(M)/kubeadm /opt/cni/bin/sriov $(R)/sriov-network-device-plu
 	kubectl apply -f $(R)/sriov-network-device-plugin/deployments/k8s-v1.16/sriovdp-daemonset.yaml
 	touch $@
 
+.PHONY: reset-kubeadm
+
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#tear-down
 reset-kubeadm:
 	rm -f $(M)/setup $(M)/kubeadm $(M)/multus-init $(M)/sriov-init
 	sudo kubeadm reset -f || true
 	sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X
+
+.PHONY: force-reset
+
+force-reset:
+	-sudo killall kubelet etcd kube-apiserver kube-controller-manager kube-scheduler
+	sudo rm -rf /etc/kubernetes /var/lib/etcd /var/lib/kubelet /etc/cni
