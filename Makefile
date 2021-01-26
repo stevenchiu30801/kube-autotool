@@ -59,7 +59,7 @@ $(M)/setup:
 	# sudo systemctl daemon-reload
 	# sudo systemctl restart docker
 	# https://docs.docker.com/install/linux/linux-postinstall/#manage-docker-as-a-non-root-user
-	sudo groupadd docker
+	-sudo groupadd docker
 	sudo usermod -aG docker $$USER
 	@echo "Please log out and log back in so that your group membership is re-evaluated"
 
