@@ -3,10 +3,9 @@ MAKEDIR	:= $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD	?= $(MAKEDIR)/tmp
 M		?= $(BUILD)/milestones
 
-# 18.06.2~ce~3-0~ubuntu in Kubernetes document
-DOCKER_VERSION	?= 18.06.2
+DOCKER_VERSION	?= 5:20.10.9
 
-K8S_VERSION		?= 1.16.2
+K8S_VERSION		?= 1.19.15
 
 CALICO_VERSION		?= 3.8
 CALICOCTL_VERSION	?= 3.8.5
@@ -40,11 +39,13 @@ $(M)/setup:
 # https://kubernetes.io/docs/setup/production-environment/container-runtimes/#docker
 /usr/bin/docker: | $(M)/setup
 	sudo apt-get update
-	sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-	sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(shell lsb_release -cs) stable"
+	sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+	echo \
+		"deb [arch=$$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+		$$(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 	sudo apt-get update
-	sudo apt-get install -y docker-ce=${DOCKER_VERSION}*
+	sudo apt-get install -y docker-ce=${DOCKER_VERSION}* docker-ce-cli=${DOCKER_VERSION}* containerd.io
 	# Currently, systemd would report error in kubelet logs on both ubuntu Xenial and Bionic
 	# Please refer to https://github.com/kubernetes/kubernetes/issues/76531
 	# echo -e "{\n\
@@ -66,9 +67,9 @@ $(M)/setup:
 # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl
 /usr/bin/kubeadm: | $(M)/setup /usr/bin/docker
 	sudo apt-get update
-	sudo apt-get install -y apt-transport-https curl
-	curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-	echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+	sudo apt-get install -y apt-transport-https ca-certificates curl
+	sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+	echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 	sudo apt-get update
 	sudo apt-get install -y kubelet=${K8S_VERSION}-* kubeadm=${K8S_VERSION}-* kubectl=${K8S_VERSION}-*
 	sudo apt-mark hold kubelet kubeadm kubectl
